@@ -32,8 +32,34 @@ inputs:
 outputs:
   changed_lines:
     description: 'Lines with changes'
+    value: '${{ steps.run_changed_lines.outputs.changed_lines }}'
   changed_files: 
     description: 'Files with changes'
+    value: '${{ steps.run_changed_lines.outputs.changed_files }}'
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
+  using: 'composite'
+  steps:
+    - run: |
+        set -eu
+        (
+          cd "$ACTION_PATH"
+          python3 -m venv venv
+          venv/bin/pip install -r requirements.txt
+        )
+      shell: bash
+      env:
+        ACTION_PATH: '${{ github.action_path }}'
+    - id: 'run_changed_lines'
+      run: |
+        set -eu
+        exec "${ACTION_PATH}/venv/bin/python3" "$ACTION_PATH/main.py"
+      shell: bash
+      env:
+        ACTION_PATH: '${{ github.action_path }}'
+        # Cf. https://github.com/actions/runner/issues/665
+        INPUT_TOKEN: '${{ inputs.token }}'
+        INPUT_BRANCH: '${{ inputs.branch }}'
+        INPUT_REPO: '${{ inputs.repo }}'
+        INPUT_PR: '${{ inputs.pr }}'
+        INPUT_DELIMITER: '${{ inputs.delimiter }}'
+        INPUT_FILE_FILTER: '${{ inputs.file_filter }}'
